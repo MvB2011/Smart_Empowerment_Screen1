@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policy Assessment</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        magenta: {
+          50: '#fdf2f8',
+          100: '#fce7f3',
+          200: '#fbcfe8',
+          300: '#f9a8d4',
+          400: '#f472b6',
+          500: '#e4006e',
+          600: '#c8005f',
+          700: '#a80050',
+          800: '#8b0042',
+          900: '#6d0034',
+        },
+        corp: {
+          bg: '#f3f3f3',
+          card: '#ffffff',
+          border: '#e5e5e5',
+          text: '#1a1a1a',
+          muted: '#6b6b6b',
+          light: '#999999',
+        }
+      },
+      fontFamily: {
+        sans: ['General Sans', 'system-ui', 'sans-serif'],
+        body: ['Satoshi', 'system-ui', 'sans-serif'],
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  
+  .radio-option {
+    transition: all 0.15s ease;
+  }
+  .radio-option:hover {
+    background-color: #fdf2f8;
+  }
+  .radio-option.selected {
+    background-color: #e4006e;
+    color: white;
+    border-color: #e4006e;
+  }
+  .radio-option.selected .radio-circle {
+    border-color: white;
+  }
+  .radio-option.selected .radio-circle::after {
+    background-color: white;
+  }
+  .radio-circle {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+  .radio-circle::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 0.15s ease;
+  }
+  .radio-option.selected .radio-circle::after {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  
+  .step-item {
+    position: relative;
+  }
+  
+  .score-ring {
+    width: 72px;
+    height: 72px;
+  }
+  
+  .summary-row {
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .summary-row:last-child {
+    border-bottom: none;
+  }
+
+  .icon-tile {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #f9f9f9;
+    color: #666;
+    flex-shrink: 0;
+  }
+
+  .audit-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d4d4d4;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
+  .pink-bg-section {
+    background: linear-gradient(135deg, #fce7f3 0%, #fdf2f8 100%);
+  }
+
+  /* Role Verification Modal */
+  .role-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.4s ease;
+  }
+  .role-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .role-modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 520px;
+    width: 100%;
+    padding: 0;
+    transform: scale(1);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  .role-overlay.hidden .role-modal {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  .denial-message {
+    display: none;
+  }
+  .denial-message.show {
+    display: block;
+  }
+  .confirmation-content.hidden-content {
+    display: none;
+  }
+</style>
+  <style>sd-component { display: block; }</style>
+  <script src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.js" defer init></script>
+</head>
+<body>
+<div class="min-h-screen bg-corp-bg font-sans flex flex-col">
+
+  <!-- Role Selection Modal Overlay -->
+  <div class="role-overlay" id="roleOverlay">
+    <div class="role-modal">
+      <!-- Modal Header -->
+      <div class="bg-magenta-500 rounded-t-xl px-8 py-5">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+            <iconify-icon icon="lucide:user-cog" class="text-white text-xl"></iconify-icon>
+          </div>
+          <div>
+            <h2 class="text-white text-lg font-bold tracking-tight">Access Role Selection</h2>
+            <p class="text-white/80 text-xs font-body mt-0.5">Define your permissions for this assessment session</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-8 py-7" id="confirmationContent">
+        <div class="flex flex-col gap-6">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-full bg-magenta-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <iconify-icon icon="lucide:info" class="text-magenta-500 text-xl"></iconify-icon>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-corp-text tracking-tight">Are you the Risk- &amp; Governance Owner?</h3>
+              <p class="text-sm text-corp-muted font-body mt-2 leading-relaxed">Please select your profile to determine the available features and configuration access for this assessment.</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Option: Owner -->
+            <div class="flex gap-4 p-4 border border-magenta-200 bg-magenta-50/30 rounded-xl">
+              <div class="w-10 h-10 rounded-full bg-magenta-100 flex items-center justify-center flex-shrink-0">
+                <iconify-icon icon="lucide:shield-check" class="text-magenta-500 text-lg"></iconify-icon>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-corp-text">Risk &amp; Governance Owner</h4>
+                <p class="text-xs text-corp-muted font-body mt-1">Full access to edit all fields, modify thresholds, and generate authoritative recommendations.</p>
+              </div>
+            </div>
+
+            <!-- Option: Standard -->
+            <div class="flex gap-4 p-4 border border-corp-border bg-gray-50/50 rounded-xl">
+              <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <iconify-icon icon="lucide:user" class="text-corp-muted text-lg"></iconify-icon>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-corp-text">Standard Assessor</h4>
+                <p class="text-xs text-corp-muted font-body mt-1">Standard assessment workflow with read-only access to governance-level configurations.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 justify-end mt-4">
+          <button onclick="selectRole('Standard')" class="px-6 py-2.5 text-sm font-semibold text-corp-text bg-white border border-corp-border rounded-md hover:bg-gray-50 transition-colors shadow-sm">
+            Continue as Standard User
+          </button>
+          <button onclick="selectRole('Owner')" class="px-6 py-2.5 text-sm font-semibold text-white bg-magenta-500 rounded-md hover:bg-magenta-600 transition-colors shadow-sm flex items-center gap-2">
+            <iconify-icon icon="lucide:check" class="text-sm"></iconify-icon>
+            Yes, I am the Owner
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Header Bar -->
+  <!-- component: NavigationHeader (a49f77db-eb18-4835-b0bd-6d7a4cd68e86) -->
+<div v-scope="{ ...{&quot;tasksHref&quot;:&quot;#tasks&quot;,&quot;messagesHref&quot;:&quot;#messages&quot;,&quot;settingsHref&quot;:&quot;#settings&quot;}, $emit() {} }">
+<header style="background-color: #e4006e" class="h-12 flex items-center justify-between px-6 flex-shrink-0"><div class="flex items-center gap-3"><span class="text-white text-xl font-bold tracking-tight">T</span><span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-white"></span><span class="w-1.5 h-1.5 rounded-full bg-white"></span><span class="w-1.5 h-1.5 rounded-full bg-white"></span></span><span class="text-white font-semibold text-sm ml-2 tracking-wide">Policy Assessment</span></div><div class="flex items-center gap-5"><a :href="tasksHref" class="text-white/80 hover:text-white transition-colors"><iconify-icon icon="lucide:clipboard-check" class="text-lg"></iconify-icon></a><a :href="messagesHref" class="text-white/80 hover:text-white transition-colors"><iconify-icon icon="lucide:message-square" class="text-lg"></iconify-icon></a><a :href="settingsHref" class="text-white/80 hover:text-white transition-colors"><iconify-icon icon="lucide:settings" class="text-lg"></iconify-icon></a></div></header>
+</div>
+<!-- /component: NavigationHeader (a49f77db-eb18-4835-b0bd-6d7a4cd68e86) -->
+
+  <!-- Magenta gradient accent bar -->
+  <div class="h-1 bg-gradient-to-r from-magenta-500 via-magenta-400 to-magenta-300 flex-shrink-0"></div>
+
+  <!-- Main Content Area -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    
+    <!-- Page Title Section -->
+    <div class="bg-white border-b border-corp-border px-10 py-5">
+      <h1 class="text-2xl font-bold text-corp-text tracking-tight">Policy Assessment</h1>
+      <p class="text-sm text-corp-muted mt-1 font-body">Complete the assessment steps to determine whether a new policy is needed.</p>
+    </div>
+
+    <!-- Step Progress Indicator -->
+    <!-- component: StepProgressBar (55c28ccc-08f0-4f30-ba44-a9499634b67e) -->
+<div v-scope="{ ...{&quot;activeStep&quot;:1,&quot;step1Href&quot;:&quot;#&quot;,&quot;step2Href&quot;:&quot;#&quot;,&quot;step3Href&quot;:&quot;#&quot;,&quot;step4Href&quot;:&quot;#&quot;,&quot;step5Href&quot;:&quot;#&quot;}, $emit() {} }">
+<div class="bg-white border-b border-[#e5e5e5] px-10 py-3">
+  <div class="flex items-center gap-1">
+    <!-- Step 1 -->
+    <a :href="step1Href" 
+       class="flex items-center gap-2 pr-6 pb-2.5 border-b-2 transition-colors"
+       :class="activeStep === 1 ? 'border-[#e4006e]' : 'border-transparent text-[#999999]'">
+      <span class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold"
+            :class="activeStep === 1 ? 'bg-[#e4006e] text-white' : 'border border-[#e5e5e5] text-[#999999] font-medium'">1</span>
+      <span class="text-sm"
+            :class="activeStep === 1 ? 'font-semibold text-[#1a1a1a]' : 'text-[#999999]'">Select Risk Type</span>
+    </a>
+
+    <!-- Step 2 -->
+    <a :href="step2Href" 
+       class="flex items-center gap-2 px-6 pb-2.5 border-b-2 transition-colors"
+       :class="activeStep === 2 ? 'border-[#e4006e]' : 'border-transparent text-[#999999]'">
+      <span class="w-6 h-6 rounded flex items-center justify-center text-xs"
+            :class="activeStep === 2 ? 'bg-[#e4006e] text-white font-bold' : 'border border-[#e5e5e5] text-[#999999] font-medium'">2</span>
+      <span class="text-sm"
+            :class="activeStep === 2 ? 'font-semibold text-[#1a1a1a]' : 'text-[#999999]'">Check Coverage</span>
+    </a>
+
+    <!-- Step 3 -->
+    <a :href="step3Href" 
+       class="flex items-center gap-2 px-6 pb-2.5 border-b-2 transition-colors"
+       :class="activeStep === 3 ? 'border-[#e4006e]' : 'border-transparent text-[#999999]'">
+      <span class="w-6 h-6 rounded flex items-center justify-center text-xs"
+            :class="activeStep === 3 ? 'bg-[#e4006e] text-white font-bold' : 'border border-[#e5e5e5] text-[#999999] font-medium'">3</span>
+      <span class="text-sm"
+            :class="activeStep === 3 ? 'font-semibold text-[#1a1a1a]' : 'text-[#999999]'">Assess Target Group</span>
+    </a>
+
+    <!-- Step 4 -->
+    <a :href="step4Href" 
+       class="flex items-center gap-2 px-6 pb-2.5 border-b-2 transition-colors"
+       :class="activeStep === 4 ? 'border-[#e4006e]' : 'border-transparent text-[#999999]'">
+      <span class="w-6 h-6 rounded flex items-center justify-center text-xs"
+            :class="activeStep === 4 ? 'bg-[#e4006e] text-white font-bold' : 'border border-[#e5e5e5] text-[#999999] font-medium'">4</span>
+      <span class="text-sm"
+            :class="activeStep === 4 ? 'font-semibold text-[#1a1a1a]' : 'text-[#999999]'">Assess Severity</span>
+    </a>
+
+    <!-- Step 5 -->
+    <a :href="step5Href" 
+       class="flex items-center gap-2 px-6 pb-2.5 border-b-2 transition-colors"
+       :class="activeStep === 5 ? 'border-[#e4006e]' : 'border-transparent text-[#999999]'">
+      <span class="w-6 h-6 rounded flex items-center justify-center text-xs"
+            :class="activeStep === 5 ? 'bg-[#e4006e] text-white font-bold' : 'border border-[#e5e5e5] text-[#999999] font-medium'">5</span>
+      <span class="text-sm"
+            :class="activeStep === 5 ? 'font-semibold text-[#1a1a1a]' : 'text-[#999999]'">Assess Likelihood</span>
+    </a>
+  </div>
+</div>
+</div>
+<!-- /component: StepProgressBar (55c28ccc-08f0-4f30-ba44-a9499634b67e) -->
+
+    <!-- Main Body -->
+    <div class="flex-1 flex overflow-auto">
+      <div class="flex-1 flex gap-6 px-10 py-6 max-w-full">
+        
+        <!-- Left Main Content Card -->
+        <div class="flex-1 min-w-0">
+          <div class="bg-white rounded-lg border border-corp-border shadow-sm">
+            <!-- Card Header -->
+            <div class="px-7 pt-6 pb-4 flex items-start justify-between">
+              <div>
+                <h2 class="text-lg font-bold text-corp-text tracking-tight">Select Primary Risk Type</h2>
+                <p class="text-sm text-corp-muted mt-1 font-body">Please select the primary risk type for this assessment.</p>
+              </div>
+              <button class="text-corp-light hover:text-corp-muted transition-colors p-1">
+                <iconify-icon icon="lucide:settings" class="text-lg"></iconify-icon>
+              </button>
+            </div>
+
+            <!-- Two Column Layout -->
+            <div class="px-7 pb-7 flex gap-8">
+              
+              <!-- Left Column: Radio List -->
+              <div class="flex-1 border border-corp-border rounded-lg overflow-hidden">
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Legal')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Legal</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Non-Legal Regulation')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Non-Legal Regulation</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Financial & Asset')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Financial & Asset</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Process & Execution')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Process & Execution</span>
+                </div>
+                <div class="radio-option selected flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Health & Safety')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium">Health & Safety</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Ethical')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Ethical</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Reputational')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Reputational</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 border-b border-corp-border cursor-pointer" onclick="selectRisk(this, 'Other')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">Other</span>
+                </div>
+                <div class="radio-option flex items-center gap-3 px-4 py-3 cursor-pointer" onclick="selectRisk(this, 'None')">
+                  <div class="radio-circle"></div>
+                  <span class="text-sm font-medium text-corp-text">None</span>
+                </div>
+              </div>
+
+              <!-- Right Column: Icon Reference -->
+              <div class="flex-1 flex flex-col gap-1 pt-1">
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:scale" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Legal</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:shield-check" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Non-Legal Regulation</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:euro" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Financial & Asset</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:settings-2" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Process & Execution</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:heart-pulse" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Health & Safety</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:hand-heart" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Ethical</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:megaphone" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Reputational</span>
+                </div>
+                <div class="flex items-center gap-3 py-2.5 px-2">
+                  <div class="icon-tile">
+                    <iconify-icon icon="lucide:folder" class="text-base"></iconify-icon>
+                  </div>
+                  <span class="text-sm text-corp-muted font-body">Other</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="w-72 flex-shrink-0 flex flex-col gap-5">
+          
+          <!-- Assessment Summary Card -->
+          <!-- component: AssessmentSummaryCard (38bd9e61-4c55-4af0-a8d3-52c8f5c0f2bf) -->
+<div v-scope="{ ...{&quot;score&quot;:0,&quot;maxScore&quot;:10,&quot;riskType&quot;:&quot;Health & Safety&quot;,&quot;coverage&quot;:&quot;—&quot;,&quot;targetGroup&quot;:&quot;—&quot;,&quot;severity&quot;:&quot;—&quot;,&quot;likelihood&quot;:&quot;—&quot;}, $emit() {} }">
+<div class="bg-white rounded-lg border border-[#e5e5e5] shadow-sm">
+  <div class="px-5 pt-5 pb-3">
+    <h3 class="text-base font-bold text-[#1a1a1a] tracking-tight">Assessment Summary</h3>
+  </div>
+  
+  <!-- Score Display -->
+  <div class="mx-5 mb-4 rounded-lg p-5 flex items-center gap-4" style="background: linear-gradient(135deg, #fce7f3 0%, #fdf2f8 100%);">
+    <div class="relative w-[72px] h-[72px]">
+      <svg viewBox="0 0 72 72" class="w-full h-full -rotate-90">
+        <circle cx="36" cy="36" r="30" fill="none" stroke="#e5e5e5" stroke-width="4"/>
+        <circle cx="36" cy="36" r="30" fill="none" stroke="#e4006e" stroke-width="4" stroke-dasharray="188.5" :stroke-dashoffset="188.5 * (1 - (score / maxScore))" stroke-linecap="round"/>
+      </svg>
+      <span class="absolute inset-0 flex items-center justify-center text-xl font-bold text-[#1a1a1a]">{{ score }}</span>
+    </div>
+    <span class="text-xl font-medium text-[#6b6b6b]">{{ score }} / {{ maxScore }}</span>
+  </div>
+
+  <!-- Summary Details -->
+  <div class="px-5 pb-2">
+    <h4 class="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider mb-2">Selected Risk Type</h4>
+  </div>
+  <div class="px-5 pb-5">
+    <div class="flex items-center justify-between py-2.5 border-b border-[#f0f0f0]">
+      <span class="text-xs text-[#6b6b6b] font-['Satoshi']">Selected Risk Type</span>
+      <span class="text-xs font-semibold text-[#e4006e]">{{ riskType }}</span>
+    </div>
+    <div class="flex items-center justify-between py-2.5 border-b border-[#f0f0f0]">
+      <span class="text-xs text-[#6b6b6b] font-['Satoshi']">Check Coverage</span>
+      <span class="text-xs text-[#999999]">{{ coverage }}</span>
+    </div>
+    <div class="flex items-center justify-between py-2.5 border-b border-[#f0f0f0]">
+      <span class="text-xs text-[#6b6b6b] font-['Satoshi']">Target Group</span>
+      <span class="text-xs text-[#999999]">{{ targetGroup }}</span>
+    </div>
+    <div class="flex items-center justify-between py-2.5 border-b border-[#f0f0f0]">
+      <span class="text-xs text-[#6b6b6b] font-['Satoshi']">Severity</span>
+      <span class="text-xs text-[#999999]">{{ severity }}</span>
+    </div>
+    <div class="flex items-center justify-between py-2.5">
+      <span class="text-xs text-[#6b6b6b] font-['Satoshi']">Likelihood</span>
+      <span class="text-xs text-[#999999]">{{ likelihood }}</span>
+    </div>
+    <p class="text-xs text-[#999999] mt-3 font-['Satoshi'] italic">Proceed to see recommendation</p>
+  </div>
+</div>
+</div>
+<!-- /component: AssessmentSummaryCard (38bd9e61-4c55-4af0-a8d3-52c8f5c0f2bf) -->
+
+          <!-- Audit Log Card -->
+          <!-- component: AuditLogCard (73d3dd43-f8c7-49b6-9957-abc8e18a5e4c) -->
+<div v-scope="{ ...{&quot;viewAllHref&quot;:&quot;#&quot;}, $emit() {} }">
+<div class="bg-white rounded-lg border border-[#e5e5e5] shadow-sm" style="font-family: 'General Sans', sans-serif"><div class="px-5 pt-5 pb-3 flex items-center justify-between"><h3 class="text-base font-bold text-[#1a1a1a] tracking-tight">Audit Log</h3><a :href="viewAllHref" class="text-xs font-semibold text-[#e4006e] hover:text-[#c8005f] transition-colors flex items-center gap-0.5">View all<iconify-icon icon="lucide:chevron-right" class="text-xs"></iconify-icon></a></div><div class="px-5 pb-5 flex flex-col gap-4"><div class="flex gap-3"><div class="w-2 h-2 rounded-full bg-[#d4d4d4] flex-shrink-0 mt-1.5"></div><div><p class="text-xs text-[#1a1a1a]" style="font-family: 'Satoshi', sans-serif"><span class="font-semibold">Admin: Jane Smith</span> selected risk type: Health & Safety</p><p class="text-xs text-[#999999] mt-0.5">Today, 09:42</p></div></div><div class="flex gap-3"><div class="w-2 h-2 rounded-full bg-[#d4d4d4] flex-shrink-0 mt-1.5"></div><div><p class="text-xs text-[#1a1a1a]" style="font-family: 'Satoshi', sans-serif"><span class="font-semibold">Admin: Jane Smith</span> started a new assessment</p><p class="text-xs text-[#999999] mt-0.5">Today, 09:37</p></div></div><div class="flex gap-3"><div class="w-2 h-2 rounded-full bg-[#d4d4d4] flex-shrink-0 mt-1.5"></div><div><p class="text-xs text-[#1a1a1a]" style="font-family: 'Satoshi', sans-serif">Audit trail started</p><p class="text-xs text-[#999999] mt-0.5">Today, 09:37</p></div></div></div></div>
+</div>
+<!-- /component: AuditLogCard (73d3dd43-f8c7-49b6-9957-abc8e18a5e4c) -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Action Bar -->
+    <div class="bg-white border-t border-corp-border px-10 py-3 flex items-center justify-between flex-shrink-0">
+      <span class="text-sm text-corp-muted font-body">Step 1 of 5</span>
+      <div class="flex items-center gap-3">
+        <button class="flex items-center gap-2 px-5 py-2 text-sm font-medium text-corp-text bg-white border border-corp-border rounded-md hover:bg-gray-50 transition-colors shadow-sm">
+          <iconify-icon icon="lucide:save" class="text-sm"></iconify-icon>
+          Save Draft
+        </button>
+        <button class="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-magenta-500 rounded-md hover:bg-magenta-600 transition-colors shadow-sm">
+          <iconify-icon icon="lucide:download" class="text-sm"></iconify-icon>
+          Export to PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function selectRole(role) {
+  const appContainer = document.querySelector('.min-h-screen');
+  if (appContainer) appContainer.setAttribute('data-role', role);
+
+  const overlay = document.getElementById('roleOverlay');
+  overlay.classList.add('hidden');
+  setTimeout(() => {
+    overlay.style.display = 'none';
+  }, 400);
+}
+
+function selectRisk(element, riskType) {
+  // Remove selected class from all
+  document.querySelectorAll('.radio-option').forEach(el => {
+    el.classList.remove('selected');
+    const label = el.querySelector('span:last-child');
+    if (label) {
+      label.classList.add('text-corp-text');
+    }
+  });
+  
+  // Add selected class to clicked
+  element.classList.add('selected');
+  const label = element.querySelector('span:last-child');
+  if (label) {
+    label.classList.remove('text-corp-text');
+  }
+  
+  // Update summary
+  document.getElementById('summaryRiskType').textContent = riskType;
+}
+</script>
+</body>
+</html>
